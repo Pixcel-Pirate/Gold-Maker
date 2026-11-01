@@ -1,0 +1,665 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0a0d13"><link rel="icon" href="favicon.svg"><link rel="manifest" href="manifest.webmanifest"></head><body>
+<title>The Goldsmith's Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: chapter rail on the left (wide screens) or a contents sheet (phones); one page at a time in the reading column. */
+:root {
+  --bg: #0a0d13;
+  --bg-2: #0f141d;
+  --panel: #131a25;
+  --panel-2: #182130;
+  --line: #243045;
+  --line-soft: #1b2433;
+  --text: #eef2f8;
+  --text-2: #b4bfd0;
+  --text-3: #7f8ca1;
+  --gold: #f4c55a;
+  --gold-2: #ffdf8f;
+  --gold-ink: #241a03;
+  --cyan: #63d6ea;
+  --violet: #a597ff;
+  --red: #ff7a72;
+  --display: "Chakra Petch", "Segoe UI", sans-serif;
+  --body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: 80px; }
+body {
+  margin: 0; min-height: 100vh;
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(244,197,90,.10), transparent 60%),
+    radial-gradient(700px 500px at -10% 110%, rgba(99,214,234,.07), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text); font-family: var(--body); font-weight: 500; font-size: 17px; line-height: 1.6;
+  overflow-x: hidden;
+}
+::selection { background: var(--gold); color: var(--gold-ink); }
+a { color: var(--gold); text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+a:hover { color: var(--gold-2); }
+button { font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+
+/* top bar */
+.top {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 14px;
+  height: 60px; padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
+  padding-top: env(safe-area-inset-top); height: calc(60px + env(safe-area-inset-top));
+  background: rgba(10,13,19,.82); -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid var(--line-soft);
+}
+.brand { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; flex: none; }
+.brand svg { width: 28px; height: 28px; }
+.brand span { font-family: var(--display); font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; }
+.crumb { min-width: 0; flex: 1; font-size: .92rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumb b { color: var(--text-2); font-weight: 700; }
+.top .toc-btn { display: none; }
+.progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: linear-gradient(90deg, var(--gold), var(--gold-2)); box-shadow: 0 0 12px rgba(244,197,90,.55); transition: width .6s var(--ease); }
+
+/* shell */
+.shell { display: grid; grid-template-columns: 300px minmax(0, 1fr); max-width: 1320px; margin: 0 auto; }
+.rail {
+  position: sticky; top: 60px; align-self: start; height: calc(100vh - 60px); overflow-y: auto;
+  padding: 22px 14px 40px 20px; border-right: 1px solid var(--line-soft);
+}
+.main { min-width: 0; padding: 40px clamp(20px, 5vw, 72px) 120px; }
+.page { max-width: 760px; margin: 0 auto; }
+
+/* contents (rail and sheet share it) */
+.toc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.toc .home { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; font-weight: 700; color: var(--text-2); }
+.chap { margin-top: 10px; }
+.chap > .ch-head { display: flex; align-items: baseline; gap: 10px; padding: 6px 12px; font-family: var(--display); font-weight: 600; font-size: .98rem; color: var(--text); letter-spacing: .01em; }
+.chap > .ch-head i { font-style: normal; font-family: var(--mono); font-size: .78rem; color: var(--gold); }
+.chap ul { list-style: none; margin: 2px 0 0; padding: 0 0 0 22px; border-left: 1px solid var(--line-soft); margin-left: 18px; }
+.toc a.pg, .toc .home {
+  display: block; padding: 7px 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-size: .95rem; font-weight: 600;
+  transition: background-color .2s, color .2s;
+}
+@media (hover: hover) { .toc a.pg:hover, .toc .home:hover { background: var(--panel); color: var(--text); } }
+.toc a.pg[aria-current="page"], .toc .home[aria-current="page"] { background: rgba(244,197,90,.12); color: var(--gold-2); box-shadow: inset 2px 0 0 var(--gold); }
+
+/* page */
+.ph { margin-bottom: 26px; }
+.ph h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2rem, 5.4vw, 3rem); line-height: 1.05; letter-spacing: -.01em; margin: 0 0 12px; text-wrap: balance; }
+.lede { margin: 0; font-size: 1.15rem; color: var(--text-2); max-width: 62ch; text-wrap: pretty; }
+p { margin: 0 0 14px; max-width: 68ch; }
+.panel { background: linear-gradient(180deg, var(--panel), var(--bg-2)); border: 1px solid var(--line-soft); border-radius: 16px; }
+.notes { list-style: none; margin: 18px 0; padding: 6px 0; counter-reset: n; }
+.notes li { position: relative; padding: 14px 20px 14px 58px; border-top: 1px solid var(--line-soft); }
+.notes li:first-child { border-top: 0; }
+ol.notes li::before { counter-increment: n; content: counter(n, decimal-leading-zero); position: absolute; left: 20px; top: 16px; font-family: var(--mono); font-weight: 700; font-size: .85rem; color: var(--gold); }
+ul.notes li::before { content: ""; position: absolute; left: 25px; top: 1.35em; width: 8px; height: 8px; background: var(--gold); transform: rotate(45deg); border-radius: 1px; box-shadow: 0 0 10px rgba(244,197,90,.45); }
+.notes b, .rows b { color: var(--text); font-weight: 800; }
+.src { font-size: .92rem; color: var(--text-3); margin-top: 18px; }
+.callout { margin: 18px 0; padding: 16px 20px; border-radius: 14px; background: rgba(99,214,234,.07); border: 1px solid rgba(99,214,234,.25); color: var(--text-2); }
+.callout b { color: var(--cyan); }
+
+.rows { list-style: none; margin: 18px 0; padding: 0; }
+.row { padding: 18px 20px; border-top: 1px solid var(--line-soft); }
+.row:first-child { border-top: 0; }
+.row .nm { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 1.12rem; font-weight: 800; line-height: 1.3; margin-bottom: 8px; }
+.chip { flex: none; font-family: var(--mono); font-size: .78rem; font-weight: 700; color: var(--cyan); border: 1px solid rgba(99,214,234,.35); background: rgba(99,214,234,.08); padding: 2px 8px; border-radius: 999px; }
+.row dl { display: grid; grid-template-columns: 7.5em 1fr; gap: 6px 16px; margin: 0; }
+.row dt { font-family: var(--mono); font-size: .76rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); padding-top: .32em; }
+.row dd { margin: 0; color: var(--text-2); }
+
+/* tier list */
+.tiers { display: flex; flex-direction: column; gap: 14px; margin: 18px 0; }
+.tier { display: grid; grid-template-columns: 76px 1fr; overflow: hidden; }
+.tier .tg { display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 2rem; color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); border-right: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.tier .tg small { display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin-top: -4px; text-align: center; }
+.tier ul { list-style: none; margin: 0; padding: 4px 0; }
+.tier li { padding: 12px 18px; border-top: 1px solid var(--line-soft); color: var(--text-2); }
+.tier li:first-child { border-top: 0; }
+.tier li b { display: block; color: var(--text); font-weight: 800; }
+
+/* home */
+.hero h1 { font-size: clamp(2.4rem, 7vw, 4rem); }
+.hero h1 em { font-style: normal; color: var(--gold); }
+.timeline { list-style: none; margin: 30px 0 44px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.phase { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 18px; border-radius: 16px; border: 1px solid var(--line-soft); background: linear-gradient(180deg, var(--panel), var(--bg-2)); transition: border-color .25s, transform .25s var(--ease); }
+.phase:hover { border-color: var(--line); transform: translateY(-2px); }
+.phase .when { font-family: var(--mono); font-size: .8rem; font-weight: 700; color: var(--text-3); }
+.phase .what { font-family: var(--display); font-weight: 700; font-size: 1.25rem; }
+.phase .do { color: var(--text-2); font-size: .95rem; }
+.phase.now { border-color: rgba(244,197,90,.6); box-shadow: 0 0 0 1px rgba(244,197,90,.25), 0 12px 40px -18px rgba(244,197,90,.5); }
+.phase.now .when { color: var(--gold); }
+.phase.now .when::after { content: "  · you are here"; }
+.chapters { list-style: none; margin: 18px 0 0; padding: 0; }
+.chapters button { all: unset; cursor: pointer; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 14px; width: 100%; box-sizing: border-box; padding: 16px 20px; border-top: 1px solid var(--line-soft); transition: background-color .2s; }
+.chapters li:first-child button { border-top: 0; }
+.chapters button:hover { background: rgba(255,255,255,.025); }
+.chapters .num { font-family: var(--mono); font-weight: 700; color: var(--gold); }
+.chapters .t { font-family: var(--display); font-weight: 700; font-size: 1.15rem; }
+.chapters .d { display: block; color: var(--text-3); font-size: .92rem; font-family: var(--body); font-weight: 600; }
+.chapters .n { font-family: var(--mono); font-size: .8rem; color: var(--text-3); }
+h2.sec { font-family: var(--display); font-size: 1.3rem; margin: 34px 0 0; }
+
+/* pager */
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 40px; }
+.pager button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--line-soft); background: var(--bg-2); transition: border-color .2s, background-color .2s; }
+.pager button:hover { border-color: rgba(244,197,90,.5); background: var(--panel); }
+.pager .nx { text-align: right; grid-column: 2; }
+.pager small { font-family: var(--mono); font-size: .76rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
+.pager span { font-weight: 800; }
+
+/* bottom bar (phones) */
+.bar { display: none; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 16px; border-radius: 12px; cursor: pointer;
+  font-weight: 800; font-size: .98rem; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  transition: background-color .2s, border-color .2s, transform .15s;
+}
+.btn:active { transform: scale(.97); }
+.btn.primary { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: var(--gold-ink); border-color: transparent; box-shadow: 0 6px 20px -8px rgba(244,197,90,.7); }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* contents sheet */
+.sheet { position: fixed; inset: 0; z-index: 50; display: none; }
+.sheet.open { display: block; }
+.sheet .scrim { position: absolute; inset: 0; background: rgba(4,6,10,.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); animation: fade .25s var(--ease); }
+.sheet .card { position: absolute; left: 0; right: 0; bottom: 0; max-height: 86vh; overflow-y: auto; padding: 10px 16px calc(24px + env(safe-area-inset-bottom)); background: var(--bg-2); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; animation: rise .35s var(--ease); }
+.sheet .grab { width: 44px; height: 5px; border-radius: 3px; background: var(--line); margin: 6px auto 12px; }
+.sheet .sh { display: flex; justify-content: space-between; align-items: center; padding: 0 4px 6px; }
+.sheet .sh b { font-family: var(--display); font-size: 1.3rem; }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } }
+@keyframes fade { from { opacity: 0; } }
+
+/* update prompt (desktop app and installed web app only) */
+.upd { display: none; min-height: 38px; padding: 0 14px; font-size: .9rem; }
+.upd.show { display: inline-flex; }
+.updbox { position: fixed; top: calc(72px + env(safe-area-inset-top)); left: 50%; z-index: 60; width: min(28rem, calc(100vw - 32px)); transform: translateX(-50%); padding: 20px 22px; border-radius: 16px; background: var(--panel-2); border: 1px solid rgba(244,197,90,.45); box-shadow: 0 24px 60px -20px rgba(0,0,0,.8); animation: rise .35s var(--ease); }
+.updbox[hidden] { display: none; }
+.updbox b { display: block; font-family: var(--display); font-size: 1.2rem; margin-bottom: 4px; }
+.updbox p { color: var(--text-2); margin: 0 0 14px; }
+.updbox .acts { display: flex; gap: 8px; }
+@media (max-width: 960px) {
+  .shell { display: block; }
+  .rail { display: none; }
+  .top .toc-btn { display: inline-flex; min-height: 38px; padding: 0 12px; font-size: .9rem; }
+  .main { padding: 28px 16px calc(110px + env(safe-area-inset-bottom)); }
+  .bar {
+    display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 8px;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(10,13,19,.88); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--line-soft);
+  }
+  .timeline { grid-template-columns: 1fr; }
+  .pager { display: none; }
+}
+@media (max-width: 420px) {
+  .brand span { display: none; }
+  .row dl { grid-template-columns: 1fr; gap: 2px; }
+  .row dd + dt { margin-top: 8px; }
+  .notes li { padding-left: 50px; padding-right: 16px; }
+  ol.notes li::before { left: 16px; }
+  ul.notes li::before { left: 20px; }
+  .tier { grid-template-columns: 58px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="top">
+  <button class="brand" id="home" aria-label="Home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="#f4c55a" stroke-width="2.4"/><circle cx="16" cy="16" r="7.5" fill="none" stroke="#f4c55a" stroke-width="1.4" opacity=".55"/><path d="M16 9.5v13M12.5 12.5h5a2.2 2.2 0 0 1 0 4.4h-3a2.2 2.2 0 0 0 0 4.4h5" fill="none" stroke="#ffdf8f" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span>The Goldsmith's Ledger</span>
+  </button>
+  <div class="crumb" id="crumb"></div>
+  <button class="btn primary upd" id="upd"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span>Update</span></button>
+  <button class="btn toc-btn" id="tocTop" aria-label="Open contents"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Contents</button>
+  <div class="progress" id="progress"></div>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Contents"><div id="rail"></div></nav>
+  <main class="main"><article class="page" id="page"></article></main>
+</div>
+
+<nav class="bar" aria-label="Page navigation">
+  <button class="btn" id="prev"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Back</button>
+  <button class="btn" id="toc"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Contents</button>
+  <button class="btn primary" id="next">Next<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+</nav>
+
+<div class="updbox" id="updbox" role="dialog" aria-label="Update available" hidden>
+  <b id="updTitle">A new version of the Ledger is out</b>
+  <p id="updText"></p>
+  <div class="acts"><button class="btn primary" id="updNow">Update now</button><button class="btn" id="updLater">Later</button></div>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Contents">
+  <div class="scrim" data-close></div>
+  <div class="card">
+    <div class="grab"></div>
+    <div class="sh"><b>Contents</b><button class="btn" data-close aria-label="Close contents">Close</button></div>
+    <div id="sheetToc"></div>
+  </div>
+</div>
+
+<script>
+const E = (name, a, b, skill) => ({ name, a, b, skill });
+const SRC = {
+  plan: `<a href="https://www.youtube.com/watch?v=BEZJxNYR-SU" target="_blank" rel="noopener">The Foolproof Way to Get Rich in WoW Forever</a> by Gillee`,
+  prof: `<a href="https://www.youtube.com/watch?v=OB4axTPeB5k" target="_blank" rel="noopener">Best Professions for WoW Forever Launch?</a> by Gillee`,
+  dad: `<a href="https://www.youtube.com/watch?v=owZg2FDcpIs" target="_blank" rel="noopener">The Richest Dad Setup in WoW: Forever</a> by The Innkeeper`,
+};
+
+// The book, in the order you'll need it: plan, pick professions, level, launch weeks, raid, then reference.
+const CHAPTERS = [
+  { t: "Start here", d: "How the guide works and the plan behind it.", pages: [
+    { t: "Read this first", lede: "The steadiest gold in Classic Era came from raid supplies: herbs, Thorium, Arcane Crystals, Runecloth, elemental drops and enchanting dust. Raiders burn through them every week, so they keep selling.", html: `
+      <ul class="notes panel">
+        <li>Written from Classic Era knowledge and three WoW Forever videos. There are <b>no live prices</b> here: they differ by server and change every week.</li>
+        <li>WoW Forever adds new zones, so some farming spots and demand may shift. <b>Check your own Auction House</b> before you farm.</li>
+        <li>In Classic, two gathering professions was the money setup. For Forever, both video creators prefer <b>one gatherer plus Alchemy</b>, with crafting moved to alts. Chapter 2 explains why.</li>
+      </ul>` },
+    { t: "The gold plan", lede: "Five steps from Gillee's WoW Forever gold guide. Follow them in order.", html: `
+      <ol class="notes panel">
+        <li><b>Reach max level first.</b> Gold comes much faster at 60, so don't stop at 40 to farm.</li>
+        <li><b>Build a nest egg.</b> Gather, fish, farm raw gold or disenchant until you have a starting stack.</li>
+        <li><b>Use it as working capital.</b> That gold is for buying materials and items, not for spending.</li>
+        <li><b>Make it work.</b> Craft, flip on the Auction House, or buy recipes that sell.</li>
+        <li><b>Reinvest profits, never the principal.</b> Spend only what you earn above your nest egg.</li>
+      </ol>
+      <p class="src">Source: ${SRC.plan}.</p>` },
+    { t: "Money habits", lede: "Small habits that stop gold from leaking away.", labels: ["When", "Why"], rows: [
+      E("Make a bank alt", "Once you start selling regularly", "It posts and holds stock, so your main keeps playing and your listings earn while you're offline."),
+      E("Skip unneeded skills", "Every trainer visit while leveling", "Don't buy every rank; buy what you actually use."),
+      E("Count the Auction House costs", "Every post", "The deposit is lost if it doesn't sell, and the AH takes a cut of each sale."),
+      E("Check the sale rate", "Before you craft or farm", "A high price is worthless if the item rarely sells."),
+      E("Use trade chat too", "Big cities", "Sell crafts and services without paying AH fees."),
+    ] },
+  ] },
+  { t: "Professions", d: "Which professions to take, and when.", pages: [
+    { t: "Profession tier list", lede: "The Innkeeper ranks every money method by how well it fits one hour of play a night, not by raw gold. Methods that keep paying while you're offline rank highest.", tiers: [
+      { g: "S", c: "var(--gold)", items: [
+        ["Skinning", "Pays from the first kill while you quest, with no extra trips."],
+        ["The bank-alt factory", "Tailoring and Enchanting on an alt that crafts and posts while your main plays."],
+        ["Alchemy at 60", "Potions and elixirs that raiders buy every week."],
+      ] },
+      { g: "A", c: "var(--cyan)", items: [
+        ["Herbalism", "Steady sales to every Alchemist, and it feeds your own Alchemy later."],
+        ["Cooking + Fishing", "Raid food and fish sell in big stacks, and both work in short sessions."],
+      ] },
+      { g: "B", c: "var(--violet)", items: [
+        ["Mining", "Sells well, but needs longer farming sessions than a short night allows."],
+      ] },
+      { g: "Trap", c: "var(--red)", items: [
+        ["Blacksmithing, Engineering or Enchanting on your leveling main", "The professions are fine; the timing is the trap. Leveling them on your main eats the gold you need for your mount."],
+      ] },
+    ], html: `
+      <div class="callout"><b>Both videos agree.</b> Gather while you level, take Alchemy for the nest egg, and put crafting on alts. Enchanting is S tier on a bank alt and a trap on your leveling main. Engineering waits until 60.</div>
+      <p class="src">Source: ${SRC.dad}. The video gives no gold-per-hour figures; it ranks by time only.</p>` },
+    { t: "The best profession route", lede: "Gillee's launch profession plan, as one route from level 1 to raiding.", html: `
+      <ol class="notes panel">
+        <li><b>Levels 1–34: Skinning + Herbalism.</b> Skin and pick everything as you quest, and sell early herbs while they're at their peak.</li>
+        <li><b>Around 34: drop Skinning, learn Alchemy.</b> Level it with herbs you've banked, and keep Herbalism.</li>
+        <li><b>At 60: Alchemy builds your nest egg.</b> Potions and elixirs for the raid crowd, from your own herbs.</li>
+        <li><b>Then switch to what raids need.</b> He looks at Engineering at 60. Pick whatever your raid role wants.</li>
+        <li><b>Alts craft the rest.</b> Put Blacksmithing and Tailoring on alts so your main keeps leveling fast.</li>
+      </ol>
+      <p class="src">Source: ${SRC.prof}. The zones come from Classic Era.</p>` },
+    { t: "Profession rules", lede: "The mistakes both videos warn about.", html: `
+      <ul class="notes panel">
+        <li><b>Keep gathering leveled.</b> Pick every node you pass so your skill never falls behind your zone.</li>
+        <li><b>Train on time.</b> Journeyman at 10, Expert at 20, Artisan at 35, or your skill stops rising.</li>
+        <li><b>Double gathering is overrated</b> after your 30s. One gatherer plus a crafter that uses it (Herbalism + Alchemy) earns more.</li>
+        <li><b>Don't level crafting on your main.</b> Blacksmithing, Engineering and Enchanting slow you down and drain your mount fund.</li>
+        <li><b>Skipping Mining is fine</b> on this route. Herbalism and Alchemy carry the nest egg.</li>
+        <li><b>Don't drop a profession your class relies on.</b> Match the plan to how you play.</li>
+      </ul>` },
+    { t: "Crafting and the snowball", lede: "Good crafts sell often and cost less to make than they sell for.", html: `
+      <ul class="notes panel">
+        <li><b>Do the math.</b> Material cost plus fees, against the sale price. Track it in a spreadsheet, and don't trust "gold per hour" claims.</li>
+        <li><b>Buy profitable recipes.</b> A rare recipe that sells well pays for itself.</li>
+        <li><b>Pay others to craft</b> when you lack the profession and the margin is still there.</li>
+        <li><b>Earn while offline.</b> Keep listings up on your bank alt.</li>
+        <li><b>Snowball.</b> Put profits back into bigger batches and more flips, and keep the nest egg untouched.</li>
+      </ul>` },
+  ] },
+  { t: "Leveling route", d: "Where to quest and what to pick up, level by level.", pages: [
+    { t: "Herb route 1–30", lede: "Quest through these zones in order and your Herbalism keeps pace with your level.", labels: ["Zones", "Herbs (skill)"], rows: [
+      E("Levels 1–10", "Any starting zone: Elwynn, Durotar, Dun Morogh, Teldrassil, Mulgore, Tirisfal", "Peacebloom, Silverleaf, Earthroot (1)"),
+      E("Levels 10–20", "The Barrens, Westfall, Loch Modan, Darkshore, Silverpine", "Mageroyal (50), Briarthorn (70), Stranglekelp (85), Bruiseweed (100)"),
+      E("Levels 20–30", "Hillsbrad, Ashenvale, Stonetalon, Wetlands, Redridge, Duskwood", "Wild Steelbloom (115), Grave Moss (120), Kingsblood (125), Liferoot (150)"),
+    ] },
+    { t: "Herb route 30–60", lede: "Train Artisan Herbalism (up to 300) at level 35, or you'll be capped.", labels: ["Zones", "Herbs (skill)"], rows: [
+      E("Levels 30–40", "Arathi Highlands, Stranglethorn Vale, Desolace, Dustwallow Marsh", "Fadeleaf (160), Goldthorn (170), Khadgar's Whisker (185)"),
+      E("Levels 40–50", "Tanaris, Feralas, Hinterlands, Searing Gorge, Swamp of Sorrows", "Firebloom (205), Purple Lotus (210), Sungrass (230), Ghost Mushroom (245)"),
+      E("Levels 50–55", "Un'Goro Crater, Felwood, Western Plaguelands", "Arthas' Tears (220), Gromsblood (250), Golden Sansam (260), Dreamfoil (270)"),
+      E("Levels 55–60", "Winterspring, Eastern Plaguelands, Burning Steppes, Silithus", "Mountain Silversage (280), Plaguebloom (285), Icecap (290), Black Lotus (300)"),
+    ] },
+    { t: "Levels 20–29", lede: "Gather on the way while you quest. Leveling crafters buy all of it.", rows: [
+      E("Briarthorn & Bruiseweed", "Hillsbrad Foothills, Ashenvale, Wetlands, Stonetalon Mountains", "Healing Potions and leveling Alchemy"),
+      E("Kingsblood", "Hillsbrad Foothills, Wetlands, Ashenvale", "Alchemy leveling, Greater Healing Potions"),
+      E("Silver & Tin Ore", "Hillsbrad Foothills, Ashenvale, Stonetalon, Redridge", "Bronze Bars and leveling Blacksmiths"),
+      E("Silk Cloth", "Humanoids in Duskwood, Ashenvale, Hillsbrad, Wetlands", "Silk Bags, Tailoring and First Aid"),
+      E("Medium Leather", "Beasts in Wetlands, Hillsbrad, Stonetalon", "Leveling Leatherworkers"),
+    ] },
+    { t: "Levels 30–39", lede: "Iron and the mid-level herbs sell in big volume to crafters catching up.", rows: [
+      E("Iron Ore", "Arathi Highlands, Stranglethorn Vale, Desolace, Thousand Needles", "Steel Bars and Engineering, steady demand"),
+      E("Gold Ore", "Same Iron zones, rarer", "Gold Bars for Engineering and Blacksmithing"),
+      E("Fadeleaf, Goldthorn, Khadgar's Whisker", "Stranglethorn Vale, Arathi, Swamp of Sorrows, Dustwallow Marsh", "Shadow Protection, Agility and Intellect elixirs"),
+      E("Liferoot & Wild Steelbloom", "Arathi Highlands, Stranglethorn Vale, Wetlands rivers", "Elixirs and leveling Alchemy"),
+      E("Heavy Leather", "Beasts in Stranglethorn Vale, Arathi, Desolace", "Armor kits and leveling Leatherworkers"),
+    ] },
+    { t: "Levels 40–49", lede: "Mithril and the first raid-adjacent herbs start paying real money.", rows: [
+      E("Mithril & Truesilver Ore", "Badlands, Searing Gorge, Tanaris, Hinterlands, Feralas", "Mithril gear, Engineering and Arcanite reagents later"),
+      E("Purple Lotus", "Tanaris, Feralas, Stranglethorn Vale, Hinterlands", "Greater Mana and Elixir of Fortitude"),
+      E("Firebloom & Arthas' Tears", "Searing Gorge, Tanaris, Blasted Lands; Felwood and Plaguelands", "Firepower and Shadow Power elixirs"),
+      E("Mageweave Cloth", "Humanoids in Tanaris, Badlands, Feralas, Stranglethorn", "Mageweave Bags and First Aid"),
+      E("Thick Leather", "Beasts in Feralas, Hinterlands, Tanaris", "Leveling Leatherworkers"),
+    ] },
+    { t: "Levels 50–60", lede: "The endgame farms. Chapter 6 has the full list.", rows: [
+      E("Black Lotus & Plaguebloom", "Felwood, Eastern Plaguelands, Winterspring", "Flasks for every raid"),
+      E("Thorium & Arcane Crystal", "Un'Goro Crater, Burning Steppes, Winterspring", "Arcanite and late-game crafting"),
+      E("Runecloth", "Winterspring, Eastern Plaguelands, Felwood humanoids", "The largest-volume cloth"),
+      E("Rugged & Devilsaur Leather", "Un'Goro Crater, Winterspring, Feralas", "Armor kits and top pre-raid gear"),
+    ] },
+  ] },
+  { t: "Launch weeks", d: "What to do on a fresh server, November 4 onward.", pages: [
+    { t: "Fresh server: week one", lede: "Everyone levels professions at once, so low-level materials sell for the most they ever will.", labels: ["When", "Why"], rows: [
+      E("Take Skinning + Herbalism", "At level 1–5", "Pays from the first node and kill; swap Skinning for Alchemy around 34"),
+      E("Sell Copper Ore & Bars", "Right away, don't hold", "Every new Blacksmith and Engineer needs stacks of it"),
+      E("Sell Peacebloom, Silverleaf, Earthroot", "First days", "New Alchemists level on these; prices fall within weeks"),
+      E("Sell Linen & Wool Cloth", "As it drops", "First Aid and Tailoring leveling; Linen Bags sell too"),
+      E("Sell Light Leather", "As you skin", "New Leatherworkers buy it all"),
+      E("Don't buy from the AH", "Week one", "Early prices are inflated; save for training and your first mount"),
+    ] },
+    { t: "Fresh server: weeks 2–5", lede: "Follow the crowd. Whatever level range most players are in, their materials are in demand.", labels: ["When", "Why"], rows: [
+      E("Watch where the crowd is", "Every few days", "When most players hit their 30s, Iron and Silk spike; at 40s, Mithril and Mageweave"),
+      E("Sell bags", "Any time", "Everyone needs bag space, at every level"),
+      E("Bank Runecloth & Thorium", "Once you reach 50+", "Raid prep demand arrives with the first raid"),
+      E("Buy raid materials cheap", "Before the raid opens", "See the investment pages in chapter 5"),
+      E("Keep your nest egg", "Always", "Reinvest profits only, as in the gold plan"),
+    ] },
+  ] },
+  { t: "Raid: The Barrow Deeps", d: "Prep, the bosses, and how to profit from raid launch.", pages: [
+    { t: "Raid overview", lede: "WoW Forever's first raid. Some details are still unconfirmed.", labels: ["Status", "Details"], rows: [
+      E("Opens", "Confirmed", "December 9, 2026, five weeks after launch"),
+      E("Size", "Confirmed", "10 players, level 60, eight bosses"),
+      E("Where", "Partly known", "An ancient elven prison with three entrances; only the Mount Hyjal one is confirmed"),
+      E("Attunement", "Not announced", "None confirmed yet; beta data hints at a key for an inner prison"),
+      E("Linked dungeon", "Suggested", "Run Blackmaw Hold as part of the same progression"),
+    ] },
+    { t: "The bosses", lede: "Names from beta data that may change. This is not a confirmed kill order, and no mechanics are public yet.", html: `
+      <ol class="notes panel">
+        <li>Deepscar Matriarch</li><li>Elder Tangleclaw</li><li>Khalith the Dreadspinner</li><li>Well of Sorrow</li>
+        <li>Amethrax</li><li>Del'lynar Songwood</li><li>Ravus and Darlissa</li><li>Sonya Darkhallow</li>
+      </ol>` },
+    { t: "Prep checklist", lede: "Everything to have done before December 9.", html: `
+      <ul class="notes panel">
+        <li><b>Hit 60 early</b> and finish your pre-raid dungeon gear and quests.</li>
+        <li><b>Get a strong weapon.</b> It's the biggest single upgrade before the raid.</li>
+        <li><b>Build a steady 10-person group</b> with interrupts, dispels, crowd control, a battle res and buffs covered.</li>
+        <li><b>Learn the Mount Hyjal route</b> to the entrance.</li>
+        <li><b>Pack the basics:</b> food, healing and mana potions, elixirs, bandages and class reagents.</li>
+        <li><b>Don't farm resistance gear yet.</b> No boss damage types are known.</li>
+      </ul>
+      <p class="src">Sources: <a href="https://expcarry.com/wow-forever-barrow-deeps-raid-guide" target="_blank" rel="noopener">ExpCarry</a>, <a href="https://conquestcapped.com/guides/wow-forever/wow-forever-barrow-deeps-guide/" target="_blank" rel="noopener">ConquestCapped</a>, <a href="https://boostroom.com/blog/wow-forever-barrow-deeps-raid-guide-bosses-loot-and-preparation" target="_blank" rel="noopener">Boostroom</a>.</p>` },
+    { t: "Gold from raid launch", lede: "Every raider restocks at once on December 9. Buy and farm early, then sell into the rush.", labels: ["When", "Why"], rows: [
+      E("Healing & mana potions", "Craft or buy in November; sell the week of Dec 9", "Every raider needs them for every pull"),
+      E("Elixirs & their herbs", "Stock up in November", "Sungrass, Gromsblood, Dreamfoil and Golden Sansam spike first"),
+      E("Food & fish", "Fish through November", "Raid food sells in big stacks"),
+      E("Heavy Runecloth Bandages", "Bank Runecloth as you level", "Cheap to make and used by everyone"),
+      E("Class reagents", "Buy from vendors early", "Resell in raid week for buyers who forgot"),
+      E("Flask herbs", "Hold Black Lotus until the raid is figured out", "Forever flasks may change, so don't overbuy"),
+    ] },
+    { t: "Invest: shadow & demons", lede: "Your guess for the Barrow Deeps. Nothing is confirmed yet, so buy a little, not a lot.", labels: ["Get it", "Used for"], rows: [
+      E("Felcloth", "Jadefire satyrs in Felwood, satyrs in Azshara", "Shadow-themed tailoring and Mooncloth"),
+      E("Essence of Undeath", "Undead in the Plaguelands, Stratholme, Scholomance", "Shadow-related enchants, potions and crafts"),
+      E("Ghost Mushroom", "Inside Maraudon, Hinterlands caves", "Shadow Oil and shadow potions"),
+      E("Gromsblood", "Felwood, Desolace, Blasted Lands", "Elixir of Demonslaying and demon-related alchemy"),
+      E("Arthas' Tears", "Felwood, the Plaguelands", "Elixir of Shadow Power for shadow casters"),
+    ] },
+    { t: "Invest: fire (Molten Core)", lede: "In Classic, Molten Core needed fire resistance. These sold out every raid week.", labels: ["Get it", "Used for"], rows: [
+      E("Elemental Fire", "Fire elementals in Burning Steppes and Searing Gorge", "Greater Fire Protection Potions"),
+      E("Dreamfoil", "Un'Goro Crater, Felwood, Azshara, Silithus", "The herb half of Greater Fire Protection Potions"),
+      E("Essence & Heart of Fire", "Fire elementals, Blackrock Depths", "Fire resistance gear and enchants"),
+      E("Dark Iron Ore", "Only inside Blackrock Depths and Molten Core", "Fire resistance plate and Dark Iron crafts"),
+      E("Core Leather", "Core Hounds in Molten Core", "Fire resistance leather gear"),
+    ] },
+    { t: "Investment rules", lede: "Stockpiling only pays if you buy cheap and sell into demand.", html: `
+      <ul class="notes panel">
+        <li><b>Buy in the quiet weeks</b>, when most players are still leveling and nobody needs resistance gear.</li>
+        <li><b>Store it on your bank alt</b>, so it doesn't clutter your main.</li>
+        <li><b>Never spend more than a slice of your nest egg.</b> Raid mechanics may surprise everyone.</li>
+        <li><b>Sell the week before the raid opens</b>, and again on raid night when groups realize they need it.</li>
+        <li><b>Watch for official news.</b> Once the raid's damage types are confirmed, buy more of what it needs and sell what it doesn't.</li>
+      </ul>` },
+  ] },
+  { t: "Materials", d: "Reference: where every valuable material comes from.", pages: [
+    { t: "Herbs", lede: "The biggest everyday seller. Felwood and Un'Goro Crater are the best loops, with several of these on one route.", rows: [
+      E("Black Lotus", "Winterspring, Burning Steppes, Eastern Plaguelands, Silithus", "Every Flask needs one; the most valuable herb", "300"),
+      E("Plaguebloom", "Felwood, Eastern and Western Plaguelands", "Flask of the Titans, Greater Stoneshield", "285"),
+      E("Mountain Silversage", "Un'Goro Crater, Winterspring, Burning Steppes, Azshara", "Flask of Distilled Wisdom, Greater Arcane Elixir", "280"),
+      E("Dreamfoil", "Un'Goro Crater, Felwood, Azshara, Silithus", "Greater Protection Potions, Flask of Supreme Power", "270"),
+      E("Golden Sansam", "Un'Goro Crater, Felwood, Burning Steppes", "Major Healing and Mana Potions", "260"),
+      E("Gromsblood", "Felwood, Desolace, Blasted Lands", "Mongoose and Giants elixirs, Chromatic Resistance", "250"),
+      E("Ghost Mushroom", "Inside Maraudon, Hinterlands caves", "Shadow Oil and Dreamless Sleep; always short", "245"),
+      E("Sungrass", "Felwood, Un'Goro Crater, Hinterlands, Silithus", "Elixirs and Major Rejuvenation Potions", "230"),
+      E("Firebloom", "Searing Gorge, Blasted Lands, Tanaris", "Elixir of Firepower, Fire Protection", "205"),
+      E("Swiftthistle", "Found while picking Mageroyal and Briarthorn", "Swiftness Potions, popular for PvP"),
+    ] },
+    { t: "Ore & mining", lede: "Mining is B tier for short sessions, but Thorium and Arcane Crystals feed all late-game crafting.", rows: [
+      E("Arcane Crystal", "Chance from Rich Thorium Veins: Winterspring, Un'Goro, Burning Steppes, E. Plaguelands, Silithus", "Transmuted into Arcanite Bars for top gear"),
+      E("Thorium Ore & Bars", "Same zones, plus Western Plaguelands and Azshara", "Huge volume for Blacksmiths, Engineers and levelers"),
+      E("Dark Iron Ore", "Only inside Blackrock Depths and Molten Core", "Fire resistance gear and Dark Iron items"),
+      E("Mithril Ore", "Searing Gorge, Badlands, Hinterlands, Tanaris", "Steady demand from leveling crafters"),
+      E("Dense Stone & gems", "Thorium Veins (Star Ruby, Huge Emerald, Azerothian Diamond)", "Sharpening stones, jewelry and enchanting recipes"),
+    ] },
+    { t: "Cloth", lede: "Cloth only drops from humanoids, so pick zones packed with them.", rows: [
+      E("Runecloth", "Winterfall furbolgs in Winterspring, Scourge cultists in E. Plaguelands, Deadwood furbolgs in Felwood, Dire Maul, Stratholme", "Bags, Heavy Runecloth Bandages, reputation turn-ins"),
+      E("Felcloth", "Jadefire satyrs in Felwood, satyrs in Azshara", "Made into Mooncloth; Felcloth Bags, warlock gear"),
+      E("Mooncloth", "Made by Tailors from Felcloth, on a cooldown", "Mooncloth Bags and healer gear"),
+      E("Mageweave", "Humanoids level 35–50: Badlands, Tanaris, Stranglethorn Vale", "Leveling Tailors and First Aid"),
+    ] },
+    { t: "Leather", lede: "Skinning is S tier: it pays while you quest. Devilsaur Leather is the big prize.", rows: [
+      E("Devilsaur Leather", "Elite devilsaurs in Un'Goro Crater, often contested", "Devilsaur Gauntlets and Leggings, a top pre-raid set"),
+      E("Rugged Leather", "Beasts level 50+: Winterspring, Un'Goro, E. Plaguelands, Feralas", "Armor kits and every recipe past 250 skill"),
+      E("Thick Leather", "Beasts level 40–50: Feralas, Hinterlands, Tanaris", "Leveling Leatherworkers"),
+      E("Core Leather", "Core Hounds in Molten Core", "Fire resistance and raid leatherworking"),
+      E("Cured Rugged Hide", "Rugged Hide plus Salt from Salt Shakers", "Needed for many high-end leather recipes"),
+    ] },
+    { t: "Elements & dust", lede: "No gathering profession needed, so any character can farm these.", rows: [
+      E("Elemental Fire & Essence of Fire", "Fire elementals in Burning Steppes and Searing Gorge", "Greater Fire Protection Potions for Molten Core"),
+      E("Essence of Undeath", "Undead in the Plaguelands, Stratholme, Scholomance", "Enchanting, Alchemy and Tailoring recipes"),
+      E("Righteous Orb", "Stratholme", "Crusader, the most wanted melee weapon enchant"),
+      E("Large Brilliant Shard, Illusion Dust, Greater Eternal Essence", "Disenchant level 51–60 greens and blues", "Every high-end enchant uses them"),
+    ] },
+    { t: "Fish", lede: "Fishing and Cooking are A tier: they fit a short evening and turn into raid food.", rows: [
+      E("Stonescale Eel", "Fish schools off Feralas, Azshara and Tanaris", "Elixir of Superior Defense, Stonescale Oil"),
+      E("Oily Blackmouth", "Schools along Westfall, The Barrens and Wetlands coasts", "Blackmouth Oil for Free Action Potions"),
+      E("Nightfin Snapper", "High-level open water, at night", "Mana regen food for raid healers"),
+      E("Sunscale Salmon", "High-level open water, by day", "Health and mana regen food"),
+    ] },
+    { t: "Dungeon farms", lede: "Repeatable runs that pay on top of gathering.", rows: [
+      E("Stratholme", "Live and Undead sides, Eastern Plaguelands", "Righteous Orbs, Runecloth, Essence of Undeath, BoE epics"),
+      E("Dire Maul East lasher runs", "Warpwood lashers in Dire Maul East, Feralas", "Piles of Dreamfoil, Gromsblood and Sungrass"),
+      E("Maraudon", "Desolace", "Ghost Mushrooms, Purple Lotus, BoE drops"),
+      E("Blackrock Depths", "Blackrock Mountain", "Dark Iron Ore, Essence of Fire, BoE drops"),
+    ] },
+  ] },
+  { t: "Selling", d: "When and how to post so it actually sells.", pages: [
+    { t: "Selling well", lede: "Knowing when and how to post matters as much as what you farm.", html: `
+      <ul class="notes panel">
+        <li>Sell raid supplies a day or two before raid reset, when raiders restock.</li>
+        <li>Post in the evening, when most players are online.</li>
+        <li>Use the stack sizes people buy: 5, 10 or 20.</li>
+        <li>Don't flood the market. Post a few stacks and hold the rest.</li>
+        <li>Check your server's prices before you farm. A herb that is cheap on your server is a waste of an evening.</li>
+      </ul>` },
+  ] },
+];
+
+// Flat page list: 0 is the home page.
+const PAGES = [{ home: true, t: "Home" }];
+CHAPTERS.forEach((c, ci) => c.pages.forEach(p => { p.ch = ci; CHAPTERS[ci].first ??= PAGES.length; PAGES.push(p); }));
+
+// Phases for the home timeline (dates from The Innkeeper's video).
+const PHASES = [
+  { when: "Now – Nov 3", what: "Before launch", do: "Read Start here and pick your professions.", go: 0, until: "2026-11-04" },
+  { when: "Nov 4 – Dec 8", what: "Launch to 60", do: "Follow the leveling route and sell into the launch rush.", go: 2, until: "2026-12-09" },
+  { when: "Dec 9 onward", what: "First raid", do: "Restock raiders and sell your investments.", go: 4, until: "9999-01-01" },
+];
+
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+let cur = 0;
+
+function tocHTML() {
+  return `<ul class="toc"><li><a class="home pg" href="#0" data-go="0">Home</a></li>${CHAPTERS.map((c, ci) => `
+    <li class="chap"><div class="ch-head"><i>${pad(ci + 1)}</i>${esc(c.t)}</div><ul>${c.pages.map(p => {
+      const i = PAGES.indexOf(p);
+      return `<li><a class="pg" href="#${i}" data-go="${i}">${esc(p.t)}</a></li>`;
+    }).join("")}</ul></li>`).join("")}</ul>`;
+}
+
+function homeHTML() {
+  const today = new Date().toISOString().slice(0, 10);
+  const now = PHASES.findIndex(p => today < p.until);
+  return `<div class="ph hero"><h1>The Goldsmith's <em>Ledger</em></h1>
+    <p class="lede">A gold plan for WoW Forever, from your first herb to the first raid. Built from Classic Era knowledge and three creator videos, with no made-up prices.</p></div>
+    <ol class="timeline">${PHASES.map((p, i) => `<li><button class="phase${i === now ? " now" : ""}" data-go="${CHAPTERS[p.go].first}">
+      <span class="when">${p.when}</span><span class="what">${p.what}</span><span class="do">${p.do}</span></button></li>`).join("")}</ol>
+    <h2 class="sec">Chapters</h2>
+    <ul class="chapters panel">${CHAPTERS.map((c, ci) => `<li><button data-go="${c.first}">
+      <span class="num">${pad(ci + 1)}</span><span class="t">${esc(c.t)}<span class="d">${esc(c.d)}</span></span><span class="n">${c.pages.length} ${c.pages.length === 1 ? "page" : "pages"}</span></button></li>`).join("")}</ul>`;
+}
+
+function pageHTML(i) {
+  const p = PAGES[i];
+  if (p.home) return homeHTML();
+  const lab = p.labels || ["Where", "Used for"];
+  let h = `<div class="ph"><h1>${esc(p.t)}</h1>${p.lede ? `<p class="lede">${esc(p.lede)}</p>` : ""}</div>`;
+  if (p.tiers) h += `<div class="tiers">${p.tiers.map(t => `<section class="tier panel" style="--c:${t.c}"><div class="tg"${t.g.length > 1 ? ' style="font-size:1.25rem"' : ""}><div>${t.g}<small>tier</small></div></div>
+    <ul>${t.items.map(([n, w]) => `<li><b>${esc(n)}</b>${esc(w)}</li>`).join("")}</ul></section>`).join("")}</div>`;
+  if (p.rows) h += `<ul class="rows panel">${p.rows.map(r => `<li class="row"><div class="nm"><span>${esc(r.name)}</span>${r.skill ? `<span class="chip">Skill ${r.skill}</span>` : ""}</div>
+    <dl><dt>${lab[0]}</dt><dd>${esc(r.a)}</dd><dt>${lab[1]}</dt><dd>${esc(r.b)}</dd></dl></li>`).join("")}</ul>`;
+  if (p.html) h += p.html;
+  const pv = PAGES[i - 1], nx = PAGES[i + 1];
+  h += `<nav class="pager">${pv ? `<button data-go="${i - 1}"><small>Previous</small><span>${esc(pv.t)}</span></button>` : ""}
+    ${nx ? `<button class="nx" data-go="${i + 1}"><small>Next</small><span>${esc(nx.t)}</span></button>` : ""}</nav>`;
+  return h;
+}
+
+const page = $("page");
+function show(i, dir = 0) {
+  i = Math.max(0, Math.min(PAGES.length - 1, i));
+  const swap = () => {
+    cur = i;
+    page.innerHTML = pageHTML(i);
+    const p = PAGES[i];
+    $("crumb").innerHTML = p.home ? "" : `${esc(CHAPTERS[p.ch].t)} · <b>${esc(p.t)}</b>`;
+    $("progress").style.width = (i / (PAGES.length - 1)) * 100 + "%";
+    document.querySelectorAll(".toc [data-go]").forEach(a => +a.dataset.go === i ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+    $("prev").disabled = i === 0;
+    $("next").disabled = i === PAGES.length - 1;
+    window.scrollTo(0, 0);
+    if (history.replaceState) history.replaceState(null, "", "#" + i);
+    try { localStorage.setItem("ledger-page", String(i)); } catch (e) {}
+    if (dir && page.animate) page.animate(
+      [{ opacity: 0, transform: `translateX(${dir * 28}px)`, filter: "blur(6px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }],
+      { duration: 420, easing: "cubic-bezier(.16,1,.3,1)" });
+  };
+  if (dir && page.animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    page.animate([{ opacity: 1 }, { opacity: 0, transform: `translateX(${-dir * 20}px)`, filter: "blur(4px)" }], { duration: 140, easing: "ease-in" }).onfinish = swap;
+  } else swap();
+}
+const go = i => { if (i !== cur) show(i, i > cur ? 1 : -1); };
+
+$("rail").innerHTML = tocHTML();
+$("sheetToc").innerHTML = tocHTML();
+const sheet = $("sheet");
+const openSheet = () => { sheet.classList.add("open"); sheet.querySelector(".card [data-close]").focus(); sheet.querySelector('[aria-current]')?.scrollIntoView({ block: "center" }); };
+const closeSheet = () => sheet.classList.remove("open");
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-go]");
+  if (g) { e.preventDefault(); closeSheet(); go(+g.dataset.go); return; }
+  if (e.target.closest("[data-close]")) closeSheet();
+});
+$("home").onclick = () => go(0);
+$("prev").onclick = () => go(cur - 1);
+$("next").onclick = () => go(cur + 1);
+$("toc").onclick = openSheet;
+$("tocTop").onclick = openSheet;
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") return closeSheet();
+  if (sheet.classList.contains("open") || e.target.closest("input, textarea")) return;
+  if (e.key === "ArrowRight") go(cur + 1);
+  if (e.key === "ArrowLeft") go(cur - 1);
+});
+let tx = null, ty = null;
+page.addEventListener("touchstart", e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+page.addEventListener("touchend", e => {
+  if (tx === null) return;
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) go(cur + (dx < 0 ? 1 : -1)); // horizontal swipes only
+  tx = ty = null;
+});
+
+// Updates. The release build stamps VERSION; the published page keeps the placeholder and never checks.
+const VERSION = "__VERSION__";
+const REPO = "Pixcel-Pirate/Gold-Maker";
+const DESKTOP = location.hostname === "127.0.0.1";
+const INSTALLER = `https://github.com/${REPO}/releases/latest/download/Goldsmiths-Ledger-Setup.exe`;
+// The desktop app's own files, published with the web app on every release.
+const PACK = "https://pixcel-pirate.github.io/Gold-Maker/desktop/resources.neu";
+
+async function reloadFresh() {
+  if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+  location.reload();
+}
+// Desktop: swap in the new app files next to the .exe and restart. No installer.
+async function updateDesktop() {
+  const N = window.Neutralino;
+  if (!N) throw new Error("no native API");
+  N.init();
+  const r = await fetch(PACK, { cache: "no-store" });
+  const pack = r.ok ? await r.arrayBuffer() : null;
+  if (!pack || pack.byteLength < 20000) throw new Error("download failed"); // a cut-off file would leave the app unable to start
+  await N.filesystem.writeBinaryFile(window.NL_PATH + "/resources.neu", pack);
+  await N.app.restartProcess();
+}
+if (!VERSION.startsWith("__")) {
+  fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
+    .then(r => (r.ok ? r.json() : null))
+    .then(j => {
+      const tag = j && j.tag_name;
+      if (typeof tag !== "string" || !/^v\d{4}\.\d{2}\.\d{2}(\.\d+)?$/.test(tag) || tag === VERSION) return;
+      $("updText").textContent = `${tag} is ready (you have ${VERSION}). ` + (DESKTOP ? "Update downloads it and restarts the Ledger." : "Update reloads the Ledger with the new version.");
+      $("updbox").hidden = false;
+    })
+    .catch(() => {});
+}
+async function update() {
+  if (!DESKTOP) return reloadFresh();
+  $("updNow").disabled = $("upd").disabled = true;
+  $("upd").querySelector("span").textContent = $("updNow").textContent = "Updating…";
+  try { await updateDesktop(); }
+  catch (e) { // installs that can't write their own files: fall back to the installer
+    $("updTitle").textContent = "Almost done";
+    $("updText").textContent = "When the download finishes, close the Ledger and run Goldsmiths-Ledger-Setup.exe. Your place in the book is kept.";
+    $("updbox").querySelector(".acts").hidden = true;
+    $("updbox").hidden = false;
+    location.href = INSTALLER;
+  }
+}
+$("updNow").onclick = update;
+$("upd").onclick = update;
+$("updLater").onclick = () => { $("updbox").hidden = true; $("upd").classList.add("show"); };
+
+let start = parseInt(location.hash.slice(1), 10);
+if (isNaN(start)) try { start = +localStorage.getItem("ledger-page") || 0; } catch (e) { start = 0; }
+show(start || 0);
+</script>
+</body></html>

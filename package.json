@@ -1,0 +1,11 @@
+{
+  "name": "goldsmiths-ledger",
+  "productName": "The Goldsmith's Ledger",
+  "version": "1.0.0",
+  "description": "WoW Forever gold guide",
+  "author": "pixcel",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  }
+}
