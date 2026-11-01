@@ -626,10 +626,21 @@ async function updateDesktop() {
   N.init();
   const dir = window.NL_PATH.replace(/\//g, "\\");
   const url = `https://github.com/${REPO}/releases/download/${LATEST}/resources.neu`;
-  const cmd = `cmd /c curl.exe -fsSL --retry 2 -o "${dir}\\resources.new" "${url}" && move /y "${dir}\\resources.new" "${dir}\\resources.neu"`;
-  const r = await N.os.execCommand(cmd);
+  const r = await N.os.execCommand(`curl.exe -fsSL --retry 2 -o "${dir}\\resources.new" "${url}"`);
   if (r.exitCode !== 0) throw new Error(r.stdErr || "download failed");
-  await N.app.restartProcess();
+  // Swap after the app closes (a running app may hold its own files), then reopen it.
+  const script = [
+    "@echo off",
+    "chcp 65001 >nul",
+    `for /l %%i in (1,1,15) do (move /y "${dir}\\resources.new" "${dir}\\resources.neu" >nul 2>&1 && goto run & ping -n 2 127.0.0.1 >nul)`,
+    ":run",
+    `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GoldsmithsLedger" /v DisplayVersion /d ${LATEST} /f >nul 2>&1`,
+    `start "" "${dir}\\GoldsmithsLedger.exe"`,
+    "",
+  ].join("\r\n");
+  await N.filesystem.writeBinaryFile(`${dir}\\update.cmd`, new TextEncoder().encode(script).buffer);
+  await N.os.execCommand(`cmd /c start "" /min cmd /c "${dir}\\update.cmd"`, { background: true });
+  await N.app.exit();
 }
 if (!VERSION.startsWith("__")) {
   fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
@@ -648,12 +659,12 @@ async function update() {
   $("updNow").disabled = $("upd").disabled = true;
   $("upd").querySelector("span").textContent = $("updNow").textContent = "Updating…";
   try { await updateDesktop(); }
-  catch (e) { // installs that can't write their own files: fall back to the installer
-    $("updTitle").textContent = "Almost done";
-    $("updText").textContent = "When the download finishes, close the Ledger and run Goldsmiths-Ledger-Setup.exe. Your place in the book is kept.";
-    $("updbox").querySelector(".acts").hidden = true;
+  catch (e) { // never auto-download the installer; offer a retry and a manual link instead
+    $("updTitle").textContent = "Update didn't finish";
+    $("updText").innerHTML = `Check your internet and try again. If it keeps failing, install the latest <a href="${INSTALLER}">Goldsmiths-Ledger-Setup.exe</a> once.`;
+    $("updNow").disabled = $("upd").disabled = false;
+    $("upd").querySelector("span").textContent = $("updNow").textContent = "Try again";
     $("updbox").hidden = false;
-    location.href = INSTALLER;
   }
 }
 $("updNow").onclick = update;
