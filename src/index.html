@@ -612,22 +612,23 @@ const VERSION = "__VERSION__";
 const REPO = "Pixcel-Pirate/Gold-Maker";
 const DESKTOP = location.hostname === "127.0.0.1";
 const INSTALLER = `https://github.com/${REPO}/releases/latest/download/Goldsmiths-Ledger-Setup.exe`;
-// The desktop app's own files, published with the web app on every release.
-const PACK = "https://pixcel-pirate.github.io/Gold-Maker/desktop/resources.neu";
+let LATEST = null;
 
 async function reloadFresh() {
   if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
   location.reload();
 }
-// Desktop: swap in the new app files next to the .exe and restart. No installer.
+// Desktop: download the new app files (resources.neu, a release asset) next to the .exe, swap them in, restart.
+// curl.exe ships with Windows 10 and 11; -f makes a failed download leave the current files untouched.
 async function updateDesktop() {
   const N = window.Neutralino;
-  if (!N) throw new Error("no native API");
+  if (!N || !window.NL_PATH || !LATEST) throw new Error("no native API");
   N.init();
-  const r = await fetch(PACK, { cache: "no-store" });
-  const pack = r.ok ? await r.arrayBuffer() : null;
-  if (!pack || pack.byteLength < 20000) throw new Error("download failed"); // a cut-off file would leave the app unable to start
-  await N.filesystem.writeBinaryFile(window.NL_PATH + "/resources.neu", pack);
+  const dir = window.NL_PATH.replace(/\//g, "\\");
+  const url = `https://github.com/${REPO}/releases/download/${LATEST}/resources.neu`;
+  const cmd = `cmd /c curl.exe -fsSL --retry 2 -o "${dir}\\resources.new" "${url}" && move /y "${dir}\\resources.new" "${dir}\\resources.neu"`;
+  const r = await N.os.execCommand(cmd);
+  if (r.exitCode !== 0) throw new Error(r.stdErr || "download failed");
   await N.app.restartProcess();
 }
 if (!VERSION.startsWith("__")) {
@@ -636,6 +637,7 @@ if (!VERSION.startsWith("__")) {
     .then(j => {
       const tag = j && j.tag_name;
       if (typeof tag !== "string" || !/^v\d{4}\.\d{2}\.\d{2}(\.\d+)?$/.test(tag) || tag === VERSION) return;
+      LATEST = tag;
       $("updText").textContent = `${tag} is ready (you have ${VERSION}). ` + (DESKTOP ? "Update downloads it and restarts the Ledger." : "Update reloads the Ledger with the new version.");
       $("updbox").hidden = false;
     })
