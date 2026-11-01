@@ -617,41 +617,10 @@ const VERSION = "__VERSION__";
 const REPO = "Pixcel-Pirate/Gold-Maker";
 const DESKTOP = location.hostname === "127.0.0.1";
 const INSTALLER = `https://github.com/${REPO}/releases/latest/download/Goldsmiths-Ledger-Setup.exe`;
-let LATEST = null;
 
 async function reloadFresh() {
   if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
   location.reload();
-}
-// Desktop: download the new app files (resources.neu, a release asset) next to the .exe, swap them in, restart.
-// curl.exe ships with Windows 10 and 11; -f makes a failed download leave the current files untouched.
-async function updateDesktop() {
-  const N = window.Neutralino;
-  if (!N || !window.NL_PATH || !LATEST) throw new Error("no native API");
-  N.init();
-  // NL_PATH can be relative to the working folder when the app was started by a relative path
-  const abs = /^([a-zA-Z]:|[\\/])/.test(window.NL_PATH) ? window.NL_PATH : `${window.NL_CWD}/${window.NL_PATH}`;
-  const dir = abs.replace(/\//g, "\\");
-  const url = `https://github.com/${REPO}/releases/download/${LATEST}/resources.neu`;
-  const r = await N.os.execCommand(`curl.exe -fsSL --retry 2 -o "${dir}\\resources.new" "${url}"`);
-  if (r.exitCode !== 0) throw new Error(r.stdErr || "download failed");
-  // Swap after the app closes (a running app may hold its own files), then reopen it.
-  const script = [
-    "@echo off",
-    "chcp 65001 >nul",
-    // wait until the old copy has fully quit, or the new window talks to its dying server and gets a stale token
-    `for /l %%i in (1,1,30) do (tasklist /fi "imagename eq GoldsmithsLedger.exe" | find /i "GoldsmithsLedger.exe" >nul || goto gone & ping -n 2 127.0.0.1 >nul)`,
-    `taskkill /im GoldsmithsLedger.exe /f >nul 2>&1`,
-    ":gone",
-    `for /l %%i in (1,1,15) do (move /y "${dir}\\resources.new" "${dir}\\resources.neu" >nul 2>&1 && goto run & ping -n 2 127.0.0.1 >nul)`,
-    ":run",
-    `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GoldsmithsLedger" /v DisplayVersion /d ${LATEST} /f >nul 2>&1`,
-    `start "" "${dir}\\GoldsmithsLedger.exe"`,
-    "",
-  ].join("\r\n");
-  await N.filesystem.writeBinaryFile(`${dir}\\update.cmd`, new TextEncoder().encode(script).buffer);
-  await N.os.execCommand(`cmd /c start "" /min cmd /c "${dir}\\update.cmd"`, { background: true });
-  await N.app.exit();
 }
 if (!VERSION.startsWith("__")) {
   fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
@@ -659,24 +628,19 @@ if (!VERSION.startsWith("__")) {
     .then(j => {
       const tag = j && j.tag_name;
       if (typeof tag !== "string" || !/^v\d{4}\.\d{2}\.\d{2}(\.\d+)?$/.test(tag) || tag === VERSION) return;
-      LATEST = tag;
-      $("updText").textContent = `${tag} is ready (you have ${VERSION}). ` + (DESKTOP ? "Update downloads it and restarts the Ledger." : "Update reloads the Ledger with the new version.");
+      $("updText").textContent = `${tag} is ready (you have ${VERSION}). ` + (DESKTOP ? "Update downloads the new installer." : "Update reloads the Ledger with the new version.");
       $("updbox").hidden = false;
     })
     .catch(() => {});
 }
-async function update() {
+function update() {
   if (!DESKTOP) return reloadFresh();
-  $("updNow").disabled = $("upd").disabled = true;
-  $("upd").querySelector("span").textContent = $("updNow").textContent = "Updating…";
-  try { await updateDesktop(); }
-  catch (e) { // never auto-download the installer; offer a retry and a manual link instead
-    $("updTitle").textContent = "Update didn't finish";
-    $("updText").innerHTML = `Check your internet and try again. If it keeps failing, install the latest <a href="${INSTALLER}">Goldsmiths-Ledger-Setup.exe</a> once.`;
-    $("updNow").disabled = $("upd").disabled = false;
-    $("upd").querySelector("span").textContent = $("updNow").textContent = "Try again";
-    $("updbox").hidden = false;
-  }
+  // Desktop: download the new installer; running it replaces the app in place.
+  $("updTitle").textContent = "Almost done";
+  $("updText").textContent = "When the download finishes, close the Ledger and run Goldsmiths-Ledger-Setup.exe. Your place in the book is kept.";
+  $("updbox").querySelector(".acts").hidden = true;
+  $("updbox").hidden = false;
+  location.href = INSTALLER;
 }
 $("updNow").onclick = update;
 $("upd").onclick = update;
