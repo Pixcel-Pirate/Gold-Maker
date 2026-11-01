@@ -1,5 +1,10 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0a0d13"><link rel="icon" href="favicon.svg"><link rel="manifest" href="manifest.webmanifest"></head><body>
 <title>The Goldsmith's Ledger</title>
+<!-- Desktop app only (404s harmlessly on the web): Neutralino's globals, a token keeper, then its client.
+     Loaded as files, not injected, because the injected copies arrive without the one-time token. -->
+<script src="./__neutralino_globals.js"></script>
+<script src="./nl-token.js"></script>
+<script src="./js/neutralino.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
@@ -624,7 +629,9 @@ async function updateDesktop() {
   const N = window.Neutralino;
   if (!N || !window.NL_PATH || !LATEST) throw new Error("no native API");
   N.init();
-  const dir = window.NL_PATH.replace(/\//g, "\\");
+  // NL_PATH can be relative to the working folder when the app was started by a relative path
+  const abs = /^([a-zA-Z]:|[\\/])/.test(window.NL_PATH) ? window.NL_PATH : `${window.NL_CWD}/${window.NL_PATH}`;
+  const dir = abs.replace(/\//g, "\\");
   const url = `https://github.com/${REPO}/releases/download/${LATEST}/resources.neu`;
   const r = await N.os.execCommand(`curl.exe -fsSL --retry 2 -o "${dir}\\resources.new" "${url}"`);
   if (r.exitCode !== 0) throw new Error(r.stdErr || "download failed");
